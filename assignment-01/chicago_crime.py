@@ -81,19 +81,21 @@ def summarize_crime(year_min, year_max, crimes, k_most, demo_from_csv=False):
     census_data = compile_census_data(ACS_VARIABLES, demo_from_csv)
 
     # Calculate summary statistics with interesting variables.
+    print("#### Summary statistics \n")
     describe_change_overall(crime_data, year_min, year_max)
     print("\n")
     interesting_variables = ["primary_type", "community"]
     for variable in interesting_variables:
-        describe_change_in_variable(crime_data, variable, year_min, year_max)
+        describe_change_in_variable(crime_data, year_min, year_max, variable)
         print("\n")
 
     # Plot incidence trends of interesting crimes.
     for crime in crimes:
-        plot_trend_of_crime_incidence(crime_data, crime)
+        plot_trend_of_crime_incidence(crime_data, year_min, year_max, crime)
         print("\n")
 
     # Identify the k blocks with highest incidence of interesting crimes.
+    print("#### Descriptive statistics \n")
     for crime in crimes:
         print(
             "#### " + crime.upper() + "\n")
@@ -103,12 +105,16 @@ def summarize_crime(year_min, year_max, crimes, k_most, demo_from_csv=False):
             print("\n")
 
     # Refuting Jacob Ringer
+    print("#### Refuting Jacob Ringer \n")
     for_ringer = crime_data[crime_data["date"] \
         .map(lambda date: date.month) == 6]
     describe_change_overall(for_ringer, year_min, year_max)
     print("\n")
+    describe_change_in_variable(for_ringer, year_min, year_max, "primary_type")
+    print("\n")
     
     # Probability of a crime type at 2111 S. Michigan Avenue
+    print("#### Probability of criminal incident at 2111 S. Michigan Avenue \n")
     S_MICHIGAN_BLOCK = Point(-87.623565, 41.854015)
     prob_block = gpd \
         .GeoDataFrame([S_MICHIGAN_BLOCK], columns=["the_geom"]) \
@@ -119,10 +125,13 @@ def summarize_crime(year_min, year_max, crimes, k_most, demo_from_csv=False):
     prob_block = prob_block["block_group"].iloc[0]
     calculate_probability_by_variable_value(crime_data, "block_group", \
         prob_block, "primary_type")
+    print("\n")
 
     # Probability for theft in a community.
+    print("#### Probability of theft in a community \n")
     calculate_probability_by_variable_value(crime_data, "primary_type", \
         "THEFT", "community")
+    print("\n")
 
 
 def compile_community_areas():
@@ -325,7 +334,7 @@ def describe_change_overall(crime_data, year_min, year_max):
         tabulate(crime_data, headers="keys", tablefmt="simple", showindex="never"))
 
 
-def describe_change_in_variable(crime_data, variable, year_min, year_max):
+def describe_change_in_variable(crime_data, year_min, year_max, variable):
 
     crime_data = crime_data \
         .groupby(["year", variable]) \
@@ -343,21 +352,18 @@ def describe_change_in_variable(crime_data, variable, year_min, year_max):
         tabulate(crime_data, headers="keys", tablefmt="simple", showindex="never"))
 
 
-def plot_trend_of_crime_incidence(crime_data, crime):
+def plot_trend_of_crime_incidence(crime_data, year_min, year_max, crime):
 
     figure, axes = plt.subplots()
     crime_data = crime_data[crime_data["primary_type"] == crime.upper()] \
         .groupby(pd.Grouper(key="date", freq="W-MON"))["primary_type"] \
         .size()
-    try:
-        crime_data.plot()
-        axes.set(
-            xlabel="Date",
-            ylabel="Incidence",
-            title=crime.title())
-        plt.show()
-    except:
-        pass # skip this visualization if there is nothing to plot.
+    crime_data.plot()
+    axes.set(
+        xlabel="Date",
+        ylabel="Incidence",
+        title=crime.title())
+    plt.savefig("-".join(["chicago", crime, str(year_min), str(year_max)]) + ".png")
 
 
 def describe_block_with_kth_most_crime(crime_data, census_data, year_min, year_max, crime, k):
