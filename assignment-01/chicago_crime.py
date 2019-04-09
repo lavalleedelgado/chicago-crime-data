@@ -91,6 +91,8 @@ def summarize_crime(year_min, year_max, crimes, k_most, demo_from_csv=False):
 
     # Identify the k blocks with highest incidence of interesting crimes.
     for crime in crimes:
+        print(
+            "## " + crime.upper() + "\n")
         for k in range(k_most):
             describe_block_with_kth_most_crime(crime_data, census_data, \
                 year_min, year_max, crime, k)
@@ -157,7 +159,7 @@ def set_census_blocks_params(max_records, num_records):
 def compile_census_data(variable_dicts):
 
     LOCATION_VARIABLES = ["state", "county", "tract", "block group"]
-    census_data = pd.DataFrame(request_census_data(variable_dicts.pop()))
+    census_data = request_census_data(variable_dicts.pop())
     for variable_dict in variable_dicts:
         census_data = census_data \
             .merge(
@@ -288,9 +290,9 @@ def describe_change_in_variable(crime_data, variable, year_min, year_max):
             axis=1)
     crime_data = crime_data \
         .fillna(0) \
-        .sort_values(by=variable, ascending=False)
+        .sort_values(by="change", ascending=False)
     print(
-        tabulate(crime_data, headers="keys", tablefmt="simple"))
+        tabulate(crime_data, headers="keys", tablefmt="simple", showindex="never"))
 
 
 def plot_trend_of_crime_incidence(crime_data, crime):
@@ -315,24 +317,24 @@ def plot_trend_of_crime_incidence(crime_data, crime):
 def describe_block_with_kth_most_crime(crime_data, census_data, year_min, year_max, crime, k):
     
     kth_block = crime_data[crime_data["primary_type"] == crime.upper()] \
-        .groupby(["block_group", "year"])["primary_type"] \
+        .groupby(["year", "block_group"])["primary_type"] \
         .agg(np.size) \
         .fillna(0) \
-        .unstack(0)
-    return kth_block #\
-        # .reset_index() \
-        # .merge(crime_data[["block_group", "community"]], on="block_group", how="left") \
-        # .merge(census_data, on="block_group", how="left") \
-        # .sort_values(by=str(year_max), ascending=False)
-    
-    #    .iloc[k]
+        .unstack(0) \
+        .reset_index() \
+        .merge(
+            crime_data[["block_group", "community"]].drop_duplicates(),
+            on="block_group", how="inner") \
+        .merge(census_data, on="block_group", how="left") \
+        .sort_values(by=str(year_max), ascending=False) \
+        .iloc[k]
     print(
         "\n" + kth_block["community"].title() + ", block no. " + 
-        kth_block["block_group"] + ":\n\n"
+        str(kth_block["block_group"]) + ":\n\n"
         "    Ranked no. " + str(k + 1) + " for most CPD responses to " +
-        "incidents of " + crime.lower() + " in " + year_max + ":\n" + 
-        "    " + year_max + ": " + str(kth_block[str(year_max)]) + "\n" +
-        "    " + year_min + ": " + str(kth_block[str(year_min)]) + "\n\n" +
+        "incidents of " + crime.lower() + " in " + str(year_max) + ":\n" + 
+        "    " + str(year_max) + ": " + str(kth_block[str(year_max)]) + "\n" +
+        "    " + str(year_min) + ": " + str(kth_block[str(year_min)]) + "\n\n" +
         "    Groups most represented in ACS statistics for this block:")
     kth_block = kth_block \
         .drop(["block_group", "community"]) \
@@ -399,6 +401,7 @@ def run():
             "Expected a string for the third argument:\n"
             "  3. comma delimited crimes.")
     crimes = crimes.split(",")
+    crimes = [crime.lstrip() for crime in crimes]
     summarize_crime(year_min, year_max, crimes, k_most, demo)
     print(
         "Finished!")
