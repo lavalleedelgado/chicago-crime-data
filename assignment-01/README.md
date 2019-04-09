@@ -3,13 +3,15 @@
 
 ## Getting started
 
-This module requires:
-* geopandas
-* matplotlib
-* numpy
-* pandas
-* shapely
-* tabulate
+This program requires:
+* python 3.7.3
+* geopandas 0.4.1
+* matplotlib 3.0.3
+* numpy 1.16.2
+* pandas 0.24.2
+* shapely 1.6.4
+* tabulate 0.8.3
+* any dependencies
 
 From the command line, run:
 
@@ -24,8 +26,21 @@ $ python chicago_crime.py <year_min> <year_max> <crime_list> <k_most> <demo>
 * **k_most**: number of highest-incidence blocks to report
 * **demo**: whether to run in demo mode from existing CSV files
 
-## Summary statistics
+The program shows the analysis detailed below, and creates some files:
+* chicago-block-groups.csv
+* chicago-crime.csv
+* cook-county-acs5-2017.csv
+* graphs from any crimes in `<crime_list>` as .png
 
+This data may take some time to download and compile. To rerun the program, you may tell the program to reference the files it generated in a previous run by changing the last positional argument in the function call to `True`.
+
+The example here calls:
+
+```
+$ python chicago_crime.py 2017 2018 battery, homicide, deceptive practice, sex offense 3 False
+```
+
+## Summary statistics
 
 #### Criminal incidents overall
 
@@ -35,7 +50,6 @@ year          incidents
 2017    263830
 2018    261616
 change      -0.00839177
-
 ```
 
 #### Criminal incidents by change year-to-year
@@ -75,7 +89,6 @@ KIDNAPPING                            193     167  -0.134715
 ROBBERY                             11728    9711  -0.171982
 HOMICIDE                             1427    1033  -0.276104
 OTHER NARCOTIC VIOLATION               11       1  -0.909091
-
 ```
 
 #### Community areas by change year-to-year in criminal incidents
@@ -160,7 +173,6 @@ WOODLAWN                  3814    3397  -0.109334
 NEW CITY                  4605    4095  -0.110749
 WEST TOWN                 8197    7076  -0.136757
 MCKINLEY PARK             1032     890  -0.137597
-
 ```
 
 ## Descriptive statistics
@@ -180,6 +192,7 @@ Loop, block no. 170318391001:
     Groups most represented in ACS statistics for this block:
     race_white: 53.7%
     educ_bachelors: 45.34%
+    hhinc_00_10K: 14.26%
 
 
 
@@ -192,6 +205,7 @@ Greater Grand Crossing, block no. 170314207005:
     Groups most represented in ACS statistics for this block:
     race_black: 92.42%
     educ_highschool: 31.23%
+    hhinc_00_10K: 31.78%
 
 
 
@@ -204,8 +218,10 @@ Woodlawn, block no. 170314207005:
     Groups most represented in ACS statistics for this block:
     race_black: 92.42%
     educ_highschool: 31.23%
-
+    hhinc_00_10K: 31.78%
 ```
+
+![Battery](chicago-battery-2017-2018.png)
 
 2. **What type of blocks have reports of homicide?** These incidents seem to occur in majority-black less-educated blocks. The graph suggests a sustained increased in reports during the summer months, but that 2018 was less violent than 2017.
 
@@ -222,6 +238,7 @@ Riverdale, block no. 170315401022:
     Groups most represented in ACS statistics for this block:
     race_black: 90.55%
     educ_highschool: 26.0%
+    hhinc_00_10K: 30.89%
 
 
 
@@ -234,6 +251,7 @@ West Garfield Park, block no. 170312604001:
     Groups most represented in ACS statistics for this block:
     race_black: 97.99%
     educ_highschool: 27.62%
+    hhinc_00_10K: 30.98%
 
 
 
@@ -246,8 +264,10 @@ South Lawndale, block no. 170318434001:
     Groups most represented in ACS statistics for this block:
     race_black: 67.7%
     educ_highschool: 29.52%
-
+    hhinc_20_25K: 13.9%
 ```
+
+![Homicide](chicago-homicide-2017-2018.png)
 
 3. **What type of blocks have reports of deceptive practice?** These incidents seem to occur in majority white well-educated blocks. The graph suggests incidents remain fairly consistent throughout the calendar year, save for an isolated increase at the end of 2017.
 
@@ -264,6 +284,7 @@ Loop, block no. 170318391001:
     Groups most represented in ACS statistics for this block:
     race_white: 53.7%
     educ_bachelors: 45.34%
+    hhinc_00_10K: 14.26%
 
 
 
@@ -276,6 +297,7 @@ Loop, block no. 170313204001:
     Groups most represented in ACS statistics for this block:
     race_white: 64.16%
     educ_masters: 34.8%
+    hhinc_150_200K: 11.21%
 
 
 
@@ -288,15 +310,14 @@ Near North Side, block no. 170310812012:
     Groups most represented in ACS statistics for this block:
     race_white: 78.35%
     educ_bachelors: 44.06%
-
+    hhinc_50_60K: 21.21%
 ```
+
+![Deceptive Practice](chicago-deceptive-practice-2017-2018.png)
 
 4. **What type of blocks have reports of sex offense?** These incidents seem to occur in both majority white well-educated blocks, or majority-black well-educated blocks. The graph suggests incidents remain fairly consistent with the average despite swings week-to-week, but also that incidents increase during major holiday seasons.
 
 ```
-#### SEX OFFENSE
-
-
 Loop, block no. 170313204001:
 
     Ranked no. 1 for most CPD responses to incidents of sex offense in 2018:
@@ -306,6 +327,7 @@ Loop, block no. 170313204001:
     Groups most represented in ACS statistics for this block:
     race_white: 64.16%
     educ_masters: 34.8%
+    hhinc_150_200K: 11.21%
 
 
 
@@ -318,6 +340,7 @@ East Garfield Park, block no. 170318378001:
     Groups most represented in ACS statistics for this block:
     race_black: 59.76%
     educ_bachelors: 29.4%
+    hhinc_00_10K: 18.62%
 
 
 
@@ -330,8 +353,10 @@ Loop, block no. 170313201002:
     Groups most represented in ACS statistics for this block:
     race_white: 68.68%
     educ_bachelors: 52.4%
-
+    hhinc_75_100K: 16.84%
 ```
+
+![Sex Offense](chicago-sex-offense-2017-2018.png)
 
 ## Refuting Jacob Ringer
 
@@ -345,7 +370,6 @@ year        incidents
 2017    23692
 2018    23243
 change     -0.0189515
-
 ```
 
 #### Criminal incidents in June by change year-to-year 
@@ -383,7 +407,6 @@ ARSON                                  46      29  -0.369565
 HOMICIDE                              198     117  -0.409091
 OBSCENITY                               6       3  -0.5
 NON-CRIMINAL                            6       3  -0.5
-
 ```
 
 ## Advising Mayor-elect Lori Lightfoot
@@ -400,7 +423,7 @@ NON-CRIMINAL                            6       3  -0.5
 
 This analysis has its limitations, particularly in that it does not distinguish criminal incidents by whether it resulted in an arrest, which may result in inflated statistics. The data is also limited in that it only records criminal instances for which CPD intervened, which may result in biased statistics because missingness at random is not plausible here.
 
-## 2111 S. Michigan Avenue
+## Probability of criminal incident
 
 #### Probability of type of crime at 2111 S. Michigan Avenue
 
@@ -429,12 +452,11 @@ OBSCENITY                                   2     0.00262467
 INTIMIDATION                                2     0.00262467
 ARSON                                       2     0.00262467
 INTERFERENCE WITH PUBLIC OFFICER            1     0.00131234
-
 ```
 
 #### Probability for theft in a community
 
-An incidence of theft is more likely in Uptown (1.52%) than in East Garfield Park (0.99%), West Garfield Park (0.96%), Garfield Ridge (0.07%).
+An incidence of theft is more likely in Uptown (1.52%) than in East Garfield Park (0.99%), a difference of 0.53 percentage points.
 
 ```
 community                 incidents    probability
@@ -516,7 +538,21 @@ HEGEWISCH                       234    0.00185011
 MONTCLARE                       227    0.00179476
 BURNSIDE                        101    0.000798552
 EDISON PARK                     100    0.000790645
-
 ```
 
+#### Bayes' theorem
+
+There are a total of 1000 calls, 600 from Garfield Park and 400 from Uptown. Of the 600 calls from Garfield Park, 100 of them are about battery. Of the 400 calls from Uptown, 160 are about battery. Therefore:
+
+* P(Garfield Park) = 600 / 1000 = 0.6000
+* P(Uptown) = 400 / 1000 = 0.4000
+
+* P(battery) = (100 + 400) / 1000 = 0.5000
+* P(battery | Garfield Park) = 100 / 600 = 0.1667
+* P(battery | Uptown) = 160 / 400 = 0.4000
+
+* P(Garfield Park | battery) = P(Garfield Park) * P(battery | Garfield Park) / P(battery) = 0.6000 * 0.1667 / 0.5000 = 0.2000
+* P(Uptown | battery) = P(Uptown) * P(battery | Uptown) / P(battery) = 0.4000 * 0.4000 / 0.5000 = 0.3200
+
+It is 12% less likely that a call about battery comes from Garfield Park than from Uptown.
 
