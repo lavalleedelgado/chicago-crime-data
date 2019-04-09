@@ -26,9 +26,9 @@ from shapely.ops import unary_union
 import shapely.wkt
 from tabulate import tabulate
 
-CRIME_DATA_API = "https://data.cityofchicago.org/resource/6zsd-86xi.json"
 COMMUNITY_AREAS_API = "https://data.cityofchicago.org/resource/igwz-8jzy.json"
 CENSUS_BLOCKS_API = "https://data.cityofchicago.org/resource/bt9m-d2mf.json"
+CRIME_DATA_API = "https://data.cityofchicago.org/resource/6zsd-86xi.json"
 ACS_API = "https://api.census.gov/data/2017/acs/acs5"
 
 ACS_RACE = {
@@ -67,18 +67,22 @@ ACS_HOUSEHOLD_INCOME = {
     "B19001_016E": "hhinc_150_200K"}
 
 ACS_VARIABLES = [ACS_RACE, ACS_EDUCATION, ACS_HOUSEHOLD_INCOME]
-CHICAGO_CRIME_CSV = "chicago-crime-2017-2018.csv"
+
 COMMUNITY_AREAS_CSV = "chicago-community-areas.csv"
 CENSUS_BLOCK_GROUPS_CSV = "chicago-block-groups.csv"
+CHICAGO_CRIME_CSV = "chicago-crime.csv"
+CENSUS_DATA_CSV = "cook-county-acs5-2017.csv"
 
 def summarize_crime(year_min, year_max, crimes, k_most, demo_from_csv=False):
 
     communities = compile_community_areas()
     blocks = compile_block_groups(demo_from_csv)
     crime_data = compile_crime_data(year_min, year_max, communities, blocks, demo_from_csv)
-    census_data = compile_census_data(ACS_VARIABLES)
-    
+    census_data = compile_census_data(ACS_VARIABLES, demo_from_csv)
+
     # Calculate summary statistics with interesting variables.
+    describe_change_overall(crime_data, year_min, year_max)
+    print("\n")
     interesting_variables = ["primary_type", "community"]
     for variable in interesting_variables:
         describe_change_in_variable(crime_data, variable, year_min, year_max)
@@ -92,18 +96,36 @@ def summarize_crime(year_min, year_max, crimes, k_most, demo_from_csv=False):
     # Identify the k blocks with highest incidence of interesting crimes.
     for crime in crimes:
         print(
-            "## " + crime.upper() + "\n")
+            "#### " + crime.upper() + "\n")
         for k in range(k_most):
             describe_block_with_kth_most_crime(crime_data, census_data, \
                 year_min, year_max, crime, k)
             print("\n")
 
-    # Part IV
-    S_MICHIGAN_BLOCK = Point(41.854015, -87.623565)
+    # Refuting Jacob Ringer
+    for_ringer = crime_data[crime_data["date"] \
+        .map(lambda date: date.month) == 6]
+    describe_change_overall(for_ringer, year_min, year_max)
+    print("\n")
+    
+    # Probability of a crime type at 2111 S. Michigan Avenue
+    S_MICHIGAN_BLOCK = Point(-87.623565, 41.854015)
+    prob_block = gpd \
+        .GeoDataFrame([S_MICHIGAN_BLOCK], columns=["the_geom"]) \
+        .set_geometry("the_geom")
+    prob_block = gpd \
+        .sjoin(prob_block, blocks) \
+        .drop(columns="index_right")
+    prob_block = prob_block["block_group"].iloc[0]
+    calculate_probability_by_variable_value(crime_data, "block_group", \
+        prob_block, "primary_type")
+
+    # Probability for theft in a community.
+    calculate_probability_by_variable_value(crime_data, "primary_type", \
+        "THEFT", "community")
 
 
-
-def compile_community_areas(demo_from_csv=False):
+def compile_community_areas():
 
     communities = pd.DataFrame(requests.get(COMMUNITY_AREAS_API).json())
     communities["the_geom"] = communities["the_geom"] \
@@ -130,6 +152,8 @@ def compile_block_groups(demo_from_csv=False):
     blocks = gpd.GeoDataFrame(blocks) \
         .set_geometry("the_geom") \
         .drop(columns=blocks.columns.difference(["block_group", "the_geom"]))
+    if not demo_from_csv:
+        blocks.to_csv(CENSUS_BLOCK_GROUPS_CSV, index=False)
     return blocks
 
 
@@ -156,8 +180,51 @@ def set_census_blocks_params(max_records, num_records):
     return parameters
 
 
-def compile_census_data(variable_dicts):
+def compile_crime_data(year_min, year_max, communities, blocks, demo_from_csv=False):
 
+    if demo_from_csv:
+        crime_data = pd.read_csv(CHICAGO_CRIME_CSV, dtype=str)
+    else:
+        crime_data = request_crime_data(year_min)
+        for y in range(1, year_max - year_min + 1):
+            crime_data = crime_data.append(request_crime_data(year_min + y))
+        crime_data.to_csv(CHICAGO_CRIME_CSV, index=False)
+    crime_data["date"] = pd.DatetimeIndex(crime_data["date"]) \
+        .normalize()
+    crime_data = join_crime_with_community_areas(crime_data, communities)
+    crime_data = join_crime_with_block_groups(crime_data, blocks)
+    return crime_data
+
+
+def request_crime_data(year, max_records=1000):
+
+    crime_data = []
+    keep_requesting = True
+    while keep_requesting:
+        request = requests.get(
+            CRIME_DATA_API,
+            params=set_crime_data_params(year, max_records, len(crime_data)))
+        new_crime_data = request.json()
+        if len(new_crime_data) < max_records:
+            keep_requesting = False
+        crime_data.extend(new_crime_data)
+    return pd.DataFrame(crime_data)
+
+
+def set_crime_data_params(year, max_records, num_records):
+
+    parameters = {
+        "year": year,
+        "$limit": max_records,
+        "$offset": num_records}
+    return parameters
+
+
+def compile_census_data(variable_dicts, demo_from_csv=False):
+
+    if demo_from_csv:
+        crime_data = pd.read_csv(CENSUS_DATA_CSV, dtype=str)
+        return crime_data
     LOCATION_VARIABLES = ["state", "county", "tract", "block group"]
     census_data = request_census_data(variable_dicts.pop())
     for variable_dict in variable_dicts:
@@ -171,7 +238,9 @@ def compile_census_data(variable_dicts):
             lambda row: "".join(str(row[var]) for var in LOCATION_VARIABLES),
             axis=1)
     census_data = census_data \
-        .drop(columns=LOCATION_VARIABLES[:3])
+        .drop(columns=LOCATION_VARIABLES)
+    if not demo_from_csv:
+        census_data.to_csv(CENSUS_DATA_CSV, index=False)
     return census_data
 
 
@@ -215,43 +284,6 @@ def isolate_respondents_label(labels):
     return columns, respondents
 
 
-def compile_crime_data(year_min, year_max, communities, blocks, demo_from_csv=False):
-
-    if demo_from_csv:
-        crime_data = pd.read_csv(CHICAGO_CRIME_CSV, dtype=str)
-    else:
-        crime_data = request_crime_data(year_min)
-        for y in range(1, year_max - year_min + 1):
-            crime_data = crime_data.append(request_crime_data(year_min + y))
-    crime_data = join_crime_with_community_areas(crime_data, communities)
-    crime_data = join_crime_with_block_groups(crime_data, blocks)
-    return crime_data
-
-
-def request_crime_data(year, max_records=1000):
-
-    crime_data = []
-    keep_requesting = True
-    while keep_requesting:
-        request = requests.get(
-            CRIME_DATA_API,
-            params=set_crime_data_params(year, max_records, len(crime_data)))
-        new_crime_data = request.json()
-        if len(new_crime_data) < max_records:
-            keep_requesting = False
-        crime_data.extend(new_crime_data)
-    return pd.DataFrame(crime_data)
-
-
-def set_crime_data_params(year, max_records, num_records):
-
-    parameters = {
-        "year": year,
-        "$limit": max_records,
-        "$offset": num_records}
-    return parameters
-
-
 def join_crime_with_community_areas(crime_data, communities):
 
     joined_data = crime_data.merge(
@@ -277,6 +309,22 @@ def join_crime_with_block_groups(crime_data, blocks):
     return joined_data
 
 
+def describe_change_overall(crime_data, year_min, year_max):
+
+    crime_data = crime_data \
+        .groupby("year") \
+        .size()
+    crime_data = crime_data.append(
+        pd.Series(
+            [(crime_data[str(year_max)] - crime_data[str(year_min)]) \
+                / crime_data[str(year_min)]], index=["change"]))
+    crime_data = crime_data \
+        .reset_index()
+    crime_data.columns = ["year", "incidents"]
+    print(
+        tabulate(crime_data, headers="keys", tablefmt="simple", showindex="never"))
+
+
 def describe_change_in_variable(crime_data, variable, year_min, year_max):
 
     crime_data = crime_data \
@@ -298,8 +346,6 @@ def describe_change_in_variable(crime_data, variable, year_min, year_max):
 def plot_trend_of_crime_incidence(crime_data, crime):
 
     figure, axes = plt.subplots()
-    crime_data["date"] = pd.DatetimeIndex(crime_data["date"]) \
-        .normalize()
     crime_data = crime_data[crime_data["primary_type"] == crime.upper()] \
         .groupby(pd.Grouper(key="date", freq="W-MON"))["primary_type"] \
         .size()
@@ -363,6 +409,23 @@ def get_top_block_census_indicators(block, variable_dicts):
     return indicators
 
 
+def calculate_probability_by_variable_value(crime_data, variable, value, group):
+
+    prob_crime = crime_data[crime_data[variable] == value] \
+        .groupby(group) \
+        .size() \
+        .reset_index()
+    prob_crime.columns = [group, "incidents"]
+    prob_crime["probability"] = prob_crime \
+        .apply(
+            lambda crime: crime["incidents"] / prob_crime["incidents"].sum(),
+            axis=1)
+    prob_crime = prob_crime \
+        .sort_values(by="probability", ascending=False)
+    print(
+        tabulate(prob_crime, headers="keys", tablefmt="simple", showindex="never"))
+    
+    
 def run():
 
     arguments = sys.argv[1:]
