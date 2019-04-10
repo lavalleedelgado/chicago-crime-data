@@ -17,7 +17,6 @@ From the command line, run:
 
 ```
 $ python chicago_crime.py <year_min> <year_max> <crime_list> <k_most> <demo>
-
 ```
 
 * **year_min**: inclusive upper bound year
@@ -177,7 +176,7 @@ MCKINLEY PARK             1032     890  -0.137597
 
 ## Descriptive statistics
 
-1. **What type of blocks have reports of battery?** These incidents seem to occur in both majority white well-educated blocks, or majority-black less-educated blocks. The graph suggests a large increase in reports at the end of the calendar year.
+1. **What type of blocks have reports of battery?** These incidents seem to occur in both majority white well-educated blocks and majority-black less-educated blocks. The graph suggests a large increase in reports at the end of the calendar year.
 
 ```
 #### BATTERY
@@ -223,7 +222,7 @@ Woodlawn, block no. 170314207005:
 
 ![Battery](chicago-battery-2017-2018.png)
 
-2. **What type of blocks have reports of homicide?** These incidents seem to occur in majority-black less-educated blocks. The graph suggests a sustained increased in reports during the summer months, but that 2018 was less violent than 2017.
+2. **What type of blocks have reports of homicide?** These incidents seem to occur in majority-black, less-educated, low-income blocks. The graph suggests a sustained increased in reports during the summer months, but that 2018 was less violent than 2017.
 
 ```
 #### HOMICIDE
@@ -313,9 +312,9 @@ Near North Side, block no. 170310812012:
     hhinc_50_60K: 21.21%
 ```
 
-![Deceptive Practice](chicago-deceptive-practice-2017-2018.png)
+![Deceptive Practice](chicago-deceptive practice-2017-2018.png)
 
-4. **What type of blocks have reports of sex offense?** These incidents seem to occur in both majority white well-educated blocks, or majority-black well-educated blocks. The graph suggests incidents remain fairly consistent with the average despite swings week-to-week, but also that incidents increase during major holiday seasons.
+4. **What type of blocks have reports of sex offense?** These incidents seem to occur in both majority white, well-educated, high-income blocks and majority-black, well-educated, low-income blocks. The graph suggests incidents remain fairly consistent with the average despite swings week-to-week, but also that incidents increase during major holiday seasons.
 
 ```
 Loop, block no. 170313204001:
@@ -356,7 +355,7 @@ Loop, block no. 170313201002:
     hhinc_75_100K: 16.84%
 ```
 
-![Sex Offense](chicago-sex-offense-2017-2018.png)
+![Sex Offense](chicago-sex offense-2017-2018.png)
 
 ## Refuting Jacob Ringer
 
