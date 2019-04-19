@@ -7,54 +7,95 @@ April 2019
 '''
 
 from datetime import datetime
+from bokeh.io import export_png
 from bokeh.layouts import gridplot
-from bokeh.plotting import figure, show, output_file
+from bokeh.plotting import figure, output_file, save
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
 from sklearn import tree
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
-from tabulate import tabulate
 
 class Plumbum:
 
-    def __init__(self, dataset, name=None, seed=0):
+    def __init__(self, dataset_path, definitions_path=None, seed=0):
 
-        self._dataset = pd.read_csv(dataset, index_col=False)
-        self._update_metadata(metadata=("name", name), new=True)
-        self._update_summary()
+        self._dataset = self._clean(pd.read_csv(dataset_path, index_col=False))
+        self._definitions = self._read_definitions(definitions_path)
+        self._metadata = {
+            variable_name: self._summarize_feature(variable_name)
+            for variable_name in self._dataset.columns
+        }
         self._seed = seed
     
 
-    def _update_metadata(self, metadata=None, new=False):
+    def _clean(self, dataset):
 
-        if new:
-            self._metadata = {
-                "create_date": datetime.now()
-            }
-        if metadata:
-            parameter, value = metadata
-            self._metadata[parameter] = value
-        else:
-            self._metadata["modify_date"] = datetime.now()
-            self._metadata["n_cols"] = self._dataset.shape[0]
-            self._metadata["n_rows"] = self._dataset.shape[1]
+        return self._clean_string_whitespace(
+            self._clean_numeric_nas(
+                dataset
+            )
+        )
+    
+
+    def _clean_numeric_nas(self, dataset):
+
+        num_variable_medians = {
+            variable_name: dataset[variable_name].median()
+            for variable_name in dataset.columns
+            if pd.api.types.is_numeric_dtype(dataset[variable_name])
+        }
+        return dataset.fillna(value=num_variable_medians)
 
     
-    def _update_summary(self):
+    def _clean_string_whitespace(self, dataset):
 
-        self._summary = {
-            "aggregations": self._dataset.describe(),
-            "correlations": self._dataset.corr(),
-            "distributions": [
-                self._plot_distribution(self._dataset[variable])
-                for variable in self._dataset.columns()
-            ]
+        dataset.columns = [
+            variable_name.strip()
+            for variable_name in dataset.columns
+        ]
+        str_variables = [
+            variable_name
+            for variable_name in dataset.columns
+            if pd.api.types.is_string_dtype(dataset[variable_name])
+        ]
+        for variable_name in str_variables:
+            dataset[variable_name] = dataset[variable_name].str.strip()
+        return dataset
+
+
+    def _read_definitions(self, definitions_path):
+
+        definitions = {
+            variable_name: None
+            for variable_name in self._dataset.columns
         }
- 
+        if definitions_path is not None:
+            definitions_file = pd.read_csv(definitions_path, index_col=False)
+            definitions_file = pd.Series(
+                definitions_file["definition"].values,
+                index=definitions_file["variable_name"]
+            )
+            definitions_file = definitions_file.to_dict()
+            for variable_name in definitions_file:
+                definitions[variable_name] = definitions_file[variable_name]
+        return definitions
 
-    def _plot_distribution(self, variable):
 
+    def _summarize_feature(self, variable_name, definition=False):
+
+        assert self._validate_variable(variable_name)
+        return {
+            "summary": self._dataset[variable_name].describe(),
+            "definition": self._definitions[variable_name]
+        }
+    
+    
+    def _plot_distribution(self, variable_name):
+
+        assert self._validate_variable(variable_name)
+        variable = self._dataset[variable_name]
         histogram, edges = np.histogram(variable, density=True, bins=50)
         pdf_x = np.linspace(variable.min(), variable.max(), variable.count())
         pdf_y = stats.skewnorm.pdf(pdf_x, *stats.skewnorm.fit(variable))
@@ -80,86 +121,125 @@ class Plumbum:
         plot.xaxis.axis_label = variable.name
         plot.yaxis.axis_label = "frequency"
         plot.grid.grid_line_color="#FFFFFF"
-        return plot
+        export_png(
+            obj=plot,
+            filename=variable_name.lower() + ".png"
+        )
 
 
-    def clean(self):
+    def _validate_variable(self, variable_name):
 
-        # Fill numeric variable NAs with variable median.
-        num_variable_medians = {
-            variable: self._dataset[variable].median()
-            for variable in self._dataset.columns
-            if pd.api.types.is_numeric_dtype(variable)
-        }
-        self._dataset = self._dataset.fillna(value=num_variable_medians)
-
-        # Strip string variable whitespace.
-        str_variables = [
-            variable
-            for variable in self._dataset.columns
-            if pd.api.types.is_string_dtype(variable)
-        ]
-        for variable in str_variables:
-            self._dataset[variable] = self._dataset[variable].str.strip()
+        assert variable_name in self._dataset.columns, \
+            variable_name + "does not exist."
+        return True
     
+
+    def _update_metadata(self, parameter, value):
+
+        assert isinstance(value, dict)
+        if parameter in self._metadata:
+            self._metadata[parameter].update(value)
+        else:
+            self._metadata[parameter] = value
+        self._metadata["correlations"] = self._dataset.corr()
+
+    
+    def request(self, variable_names=None):
+
+        if not variable_names:
+            return self._metadata
+        return_metadata = {}
+        if not isinstance(variable_names, list):
+            variable_names = [variable_names]
+        for variable_name in variable_names:
+            assert self._validate_variable(variable_name)
+            if variable_name in self._dataset.columns:
+                self._update_metadata(
+                    parameter=variable_name,
+                    value=self._summarize_feature(variable_name)
+                )
+                self._plot_distribution(variable_name)
+            if variable_name in self._metadata:
+                return_metadata[variable_name] = self._metadata[variable_name]
+        if len(return_metadata) == 1:
+            return return_metadata[variable_names[0]]
+        return return_metadata
+
 
     def as_discrete(self, variable_name, bins):
 
+        assert self._validate_variable(variable_name)
         variable = self._dataset[variable_name]
         assert pd.api.types.is_numeric_dtype(variable)
         discrete_label = variable.name + "_as_discrete"
-        self._dataset[discrete_label] = pd.qcut(
+        self._dataset[discrete_label], bounds= pd.qcut(
             x=variable,
             q=bins,
-            labels=False
+            labels=False,
+            retbins=True
+        )
+        bin_labels = {
+            b: "".join(["(", str(bounds[b]), ", ", str(bounds[b + 1]), "]"])
+            for b in range(bins)
+        }
+        new_metadata = self._summarize_feature(discrete_label)
+        new_metadata.update({"quantiles": bin_labels})
+        self._update_metadata(
+            parameter=discrete_label,
+            value=new_metadata
         )
 
 
     def as_dummy(self, variable_name):
 
+        assert self._validate_variable(variable_name)
         variable = self._dataset[variable_name]
-        assert pd.api.types.is_string_dtype(variable)
-        dummies = variable.unique()
+        dummies = list(variable.unique())
+        dummy_labels = []
         for dummy in dummies:
-            dummy_label = variable.name + "_is_" + "_".join([dummy])
+            dummy_label = variable.name + "_is_" + "_".join([str(dummy)])
+            dummy_labels.append(dummy_label)
             self._dataset[dummy_label] = (variable == dummy).astype(int)
+            self._update_metadata(
+                parameter=dummy_label,
+                value=self._summarize_feature(dummy_label)
+            )
+        self._update_metadata(
+            parameter=variable_name,
+            value={"dummies": dummy_labels}
+        )
 
     
-    def to_classifier(self, variable_name, test_size=0.3):
+    def as_classifier(self, variable_name, test_size=0.3):
 
+        assert self._validate_variable(variable_name)
         train_X, test_X, train_y, test_y = train_test_split(
             self._dataset.drop(columns=variable_name),
             self._dataset[variable_name],
             test_size=test_size,
             random_state=self._seed
         )
-        self._classifier = tree.DecisionTreeClassifier()
-        self._classifier = self._classifier.fit(
+        classifier = tree.DecisionTreeClassifier()
+        classifier = classifier.fit(
             X=train_X,
             y=train_y
         )
-        predictions = self._classifier.predict_proba(test_X)[:,1]
-        predictions.name = "Predictions for " + variable_name
-        return self._plot_distribution(predictions)
+        predictions = pd.Series(classifier.predict_proba(test_X)[:,1])
+        predictions.name = "Classifier Predictions for " + variable_name
+        self._update_metadata(
+            parameter=variable_name,
+            value={
+                "classifier_object": classifier,
+                "classifier_predictions": predictions,
+                "classifier_accuracy": accuracy_score(predictions, test_y)
+            }
+        )
 
 
     def __repr__(self):
 
-        return self._dataset
-
-
-    def __str__(self):
-
-        return tabulate(
-            self._dataset,
-            headers="keys",
-            tablefmt="simple",
-            showindex="never"
+        return "\n".join(
+            ["Available metadata:"] +
+            ["    " + key for key in self._metadata.keys()]
             )
-
-
-    
-    
-
-
 
