@@ -27,12 +27,12 @@ Import Plumbum into your workspace:
 ```
 from pld_learn import Plumbum as pb
 
-credit = pb("credit-data.csv", "credit-data-descriptions.csv")
+credit = pb("credit-data.csv", "credit-data-definitions.csv")
 ```
 
 Initialize a Plumbum object with up to two parameters:
 * **dataset_path**: path to CSV file of dataset as string
-* **definitions_path**: path to CSV file of variable descriptions as string (optional, default=None)
+* **definitions_path**: path to CSV file of variable definitions as string (optional, default=None)
 * **seed**: random seed (optional, default=0)
 
 Plumbum performs several operations upon initialization:

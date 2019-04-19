@@ -8,7 +8,6 @@ April 2019
 
 from datetime import datetime
 from bokeh.io import export_png
-from bokeh.layouts import gridplot
 from bokeh.plotting import figure, output_file, save
 import numpy as np
 import pandas as pd
@@ -23,10 +22,16 @@ class Plumbum:
 
         self._dataset = self._clean(pd.read_csv(dataset_path, index_col=False))
         self._definitions = self._read_definitions(definitions_path)
-        self._metadata = {
-            variable_name: self._summarize_feature(variable_name)
-            for variable_name in self._dataset.columns
-        }
+        self._metadata = {}
+        for variable_name in self._dataset.columns:
+            initial_metadata = self._summarize_feature(variable_name)
+            initial_metadata.update(
+                {"definition": self._definitions[variable_name]}
+            )
+            self._update_metadata(
+                parameter=variable_name,
+                value=initial_metadata
+            )
         self._seed = seed
     
 
@@ -87,8 +92,7 @@ class Plumbum:
 
         assert self._validate_variable(variable_name)
         return {
-            "summary": self._dataset[variable_name].describe(),
-            "definition": self._definitions[variable_name]
+            "summary": self._dataset[variable_name].describe()
         }
     
     
@@ -102,7 +106,9 @@ class Plumbum:
         plot = figure(
             title="Distribution of " + variable.name,
             tools="",
-            background_fill_color="#FAFAFA"
+            background_fill_color="#FAFAFA",
+            x_axis_label=variable.name,
+            y_axis_label="frequency"
         )
         plot.quad(
             top=histogram,
@@ -110,7 +116,7 @@ class Plumbum:
             left=edges[:-1],
             right=edges[1:],
             fill_color="navy",
-            line_color="#FFFFFF",
+            line_color="white",
             alpha=0.5
         )
         plot.line(
@@ -118,12 +124,9 @@ class Plumbum:
             y = pdf_y,
             color = "navy"
         )
-        plot.xaxis.axis_label = variable.name
-        plot.yaxis.axis_label = "frequency"
-        plot.grid.grid_line_color="#FFFFFF"
         export_png(
             obj=plot,
-            filename=variable_name.lower() + ".png"
+            filename=variable_name + ".png"
         )
 
 
