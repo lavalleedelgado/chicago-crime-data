@@ -9,6 +9,8 @@ Tuesday April 9, 2019
 
 Notes:
 1. Fix SettingWithCopyWarning in join_crime_with_block_groups().
+2. Generalize SOAP API parameters functions into one.
+3. Generalize SOAP API request functions into one.
 
 '''
 
@@ -107,7 +109,7 @@ def summarize_crime(year_min, year_max, crimes, k_most, demo_from_csv=False):
     # Refuting Jacob Ringer
     print("#### Refuting Jacob Ringer \n")
     for_ringer = crime_data[crime_data["date"] \
-        .map(lambda date: date.month) == 6]
+        .map(lambda date: date.month) == 7]
     describe_change_overall(for_ringer, year_min, year_max)
     print("\n")
     describe_change_in_variable(for_ringer, year_min, year_max, "primary_type")
@@ -136,6 +138,13 @@ def summarize_crime(year_min, year_max, crimes, k_most, demo_from_csv=False):
 
 def compile_community_areas():
 
+    '''
+    Compile Chicago community areas from the city's data portal.
+
+    Return community areas data (GeoDataFrame).
+
+    '''
+
     communities = pd.DataFrame(requests.get(COMMUNITY_AREAS_API).json())
     communities["the_geom"] = communities["the_geom"] \
         .apply(shape)
@@ -146,6 +155,15 @@ def compile_community_areas():
 
 
 def compile_block_groups(demo_from_csv=False):
+
+    '''
+    Compile Chicago block groups from the city's data portal.
+
+    demo_from_csv (bool): whether to compile from existing CSV or rerequest.
+
+    Return block groups data (GeoDataFrame).
+
+    '''
 
     if demo_from_csv:
         blocks = pd.read_csv(CENSUS_BLOCK_GROUPS_CSV, dtype=str)
@@ -168,6 +186,15 @@ def compile_block_groups(demo_from_csv=False):
 
 def request_census_blocks(max_records=1000):
 
+    '''
+    Request Chicago block groups data from city's SOAP API.
+
+    max_records (int): number of records desired with each request.
+
+    Return block groups data (DataFrame).
+
+    '''
+
     census_blocks = []
     keep_requesting = True
     while keep_requesting:
@@ -183,13 +210,37 @@ def request_census_blocks(max_records=1000):
 
 def set_census_blocks_params(max_records, num_records):
 
+    '''
+    Set parameters for next SOAP API request of block groups data.
+
+    max_records (int): number of records desired with next request.
+    num_records (int): number of records obtained so far for offset.
+
+    Return parameters (dict).
+
+    '''
+
     parameters = {
         "$limit": max_records,
         "$offset": num_records}
     return parameters
 
 
-def compile_crime_data(year_min, year_max, communities, blocks, demo_from_csv=False):
+def compile_crime_data(year_min, year_max, communities, blocks, \
+    demo_from_csv=False):
+
+    '''
+    Compile Chicago crime data from the city's data portal.
+
+    year_min (int): lower-bound inclusive year for request.
+    year_max (int): upper-bound inclusive year for request.
+    communities (GeoDataFrame): to assign community areas to incidents.
+    blocks (GeoDataFrame): to assign block groups to incidents.
+    demo_from_csv (bool): whether to compile from existing CSV or rerequest.
+
+    Return crime data (GeoDataFrame).
+
+    '''
 
     if demo_from_csv:
         crime_data = pd.read_csv(CHICAGO_CRIME_CSV, dtype=str)
@@ -207,6 +258,16 @@ def compile_crime_data(year_min, year_max, communities, blocks, demo_from_csv=Fa
 
 def request_crime_data(year, max_records=1000):
 
+    '''
+    Request Chicago crime data from city's SOAP API.
+
+    year_min (int): lower-bound inclusive year for request.
+    max_records (int): number of records desired with each request.
+
+    Return crime data (DataFrame).
+
+    '''
+
     crime_data = []
     keep_requesting = True
     while keep_requesting:
@@ -222,6 +283,17 @@ def request_crime_data(year, max_records=1000):
 
 def set_crime_data_params(year, max_records, num_records):
 
+    '''
+    Set parameters for next SOAP API request of crime data.
+
+    year_min (int): lower-bound inclusive year for request.
+    max_records (int): number of records desired with next request.
+    num_records (int): number of records obtained so far for offset.
+
+    Return parameters (dict).
+
+    '''
+
     parameters = {
         "year": year,
         "$limit": max_records,
@@ -230,6 +302,17 @@ def set_crime_data_params(year, max_records, num_records):
 
 
 def compile_census_data(variable_dicts, demo_from_csv=False):
+
+    '''
+    Compile Cook County data from US Census Bureau's American Community Survey,
+    five-year 2017.
+
+    variable_dicts (lst): collection of dictionaries of variables desired.
+    demo_from_csv (bool): whether to compile from existing CSV or rerequest.
+
+    Return census data (DataFrame).
+    
+    '''
 
     if demo_from_csv:
         crime_data = pd.read_csv(CENSUS_DATA_CSV, dtype=str)
@@ -255,6 +338,15 @@ def compile_census_data(variable_dicts, demo_from_csv=False):
 
 def request_census_data(variable_dict):
 
+    '''
+    Request Cook County ACS data from Census Bureau's API.
+
+    variable_dict (dict): collection of variables for one demographic theme.
+
+    Return crime data (DataFrame).
+
+    '''
+
     request = requests.get(
         ACS_API,
         params=set_census_data_params(variable_dict))
@@ -267,6 +359,16 @@ def request_census_data(variable_dict):
 
 def set_census_data_params(variable_dict):
 
+    '''
+    Set parameters for next Census Bureau API request of ACS data.
+
+    variable_dict (dict): collection of demographic variables for one theme, 
+    i.e. education, income, race.
+
+    Return parameters (dict).
+
+    '''
+
     parameters = {
         "get": ",".join(var for var in variable_dict.keys()),
         "for": "block group:*",
@@ -275,6 +377,17 @@ def set_census_data_params(variable_dict):
 
 
 def normalize_census_data_variables(census_data, variable_dict):
+
+    '''
+    Convert demographic variables into proportion of their themes, i.e.
+    education, income, race.
+
+    census_data (DataFrame): data from Census Bureau API request.
+    variable_dict (dict): collection of demographic variables for one theme.
+
+    Return updated census data (DataFrame).
+
+    '''
 
     columns, exclude = isolate_respondents_label(variable_dict.values())
     normalized = census_data[columns] \
@@ -287,6 +400,16 @@ def normalize_census_data_variables(census_data, variable_dict):
 
 def isolate_respondents_label(labels):
 
+    '''
+    Identify the column that has the sum of respondents for a theme, i.e.
+    education, income, race.
+
+    labels (lst): column names for one theme.
+
+    Return demographic columns, sum column (tuple).
+
+    '''
+
     regex = re.compile(r".*_respondents")
     respondents = list(filter(regex.match, labels))[0]
     columns = [col for col in labels if col != respondents]
@@ -294,6 +417,16 @@ def isolate_respondents_label(labels):
 
 
 def join_crime_with_community_areas(crime_data, communities):
+
+    '''
+    Join crime data and community areas data on community area number.
+
+    crime_data (DataFrame): crime data from Chiago's data portal.
+    communities (DataFrame): community areas.
+
+    Return join (DataFrame).
+
+    '''
 
     joined_data = crime_data.merge(
         communities[["area_num_1", "community"]],
@@ -303,6 +436,16 @@ def join_crime_with_community_areas(crime_data, communities):
 
 
 def join_crime_with_block_groups(crime_data, blocks):
+
+    '''
+    Join crime data and block groups data on longitude, latitude.
+
+    crime_data (DataFrame): crime data from Chiago's data portal.
+    blocks (GeoDataFrame): block group data from Chicago's data portal.
+
+    Return spatial join (GeoDataFrame).
+
+    '''
 
     crime_data = crime_data \
         .dropna(subset=["longitude", "latitude"])

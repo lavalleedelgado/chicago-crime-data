@@ -359,9 +359,9 @@ Loop, block no. 170313201002:
 
 ## Refuting Jacob Ringer
 
-1. **Are the crime statistics presented by the Jacob Ringer campaign correct?** The data does not support the campaign's claims with respect to crime city-wide. Crime overall is down 1.8%, and robberies, battery, burglaries, and motor vehicle theft incidents in particular during the month of June declined from 2017 to 2018. His campaign describes an opposite characterization of crime in Chicago.
+1. **Are the crime statistics presented by the Jacob Ringer campaign correct?** The data does not support the campaign's claims with respect to crime city-wide. Crime overall is down 1.8%, and robberies, battery, burglaries, and motor vehicle theft incidents in particular during the month of July declined from 2017 to 2018. His campaign describes an opposite characterization of crime in Chicago.
 
-#### Criminal incidents in June overall
+#### Criminal incidents in July overall
 
 ```
 year        incidents
@@ -371,7 +371,7 @@ year        incidents
 change     -0.0189515
 ```
 
-#### Criminal incidents in June by change year-to-year 
+#### Criminal incidents in July by change year-to-year 
 
 ```
 primary_type                         2017    2018        change
