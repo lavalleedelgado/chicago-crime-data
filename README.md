@@ -312,7 +312,7 @@ Near North Side, block no. 170310812012:
     hhinc_50_60K: 21.21%
 ```
 
-![Deceptive Practice](chicago-deceptive%20practice-2017-2018.png)
+![Deceptive Practice](chicago-deceptive-practice-2017-2018.png)
 
 4. **What type of blocks have reports of sex offense?** These incidents seem to occur in both majority white, well-educated, high-income blocks and majority-black, well-educated, low-income blocks. The graph suggests incidents remain fairly consistent with the average despite swings week-to-week, but also that incidents increase during major holiday seasons.
 
@@ -355,7 +355,7 @@ Loop, block no. 170313201002:
     hhinc_75_100K: 16.84%
 ```
 
-![Sex Offense](chicago-sex%20offense-2017-2018.png)
+![Sex Offense](chicago-sex-offense-2017-2018.png)
 
 ## Refuting Jacob Ringer
 

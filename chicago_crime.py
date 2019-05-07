@@ -506,6 +506,7 @@ def plot_trend_of_crime_incidence(crime_data, year_min, year_max, crime):
         xlabel="Date",
         ylabel="Incidence",
         title=crime.title())
+    crime = "-".join(crime.split())
     plt.savefig("-".join(["chicago", crime, str(year_min), str(year_max)]) + ".png")
 
 
